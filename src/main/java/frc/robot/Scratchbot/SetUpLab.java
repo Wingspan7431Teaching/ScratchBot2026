@@ -10,6 +10,7 @@ public class SetUpLab {
         runScratchbotCommands();
     }
     public static void runScratchbotCommands(){
+        CommandScheduler.getInstance().cancelAll();
         SequentialCommandGroup sequence = Scratchbot.getToRun();
         CommandScheduler.getInstance().schedule(sequence);
         Scratchbot.clearCommands();

@@ -45,7 +45,6 @@ public class Robot extends TimedRobot {
   @Override
   public void testInit() {
     //Run Lab
-    CommandScheduler.getInstance().cancelAll();
     SetUpLab.initialize();
   }
 
