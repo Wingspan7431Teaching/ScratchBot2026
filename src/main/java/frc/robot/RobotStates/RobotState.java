@@ -23,6 +23,6 @@ public class RobotState {
         }
         ));
 
-        new JoystickButton(controller, XboxController.Button.kA.value).onTrue(new InstantCommand(PositionComponent::zeroPos));
+        new JoystickButton(controller, XboxController.Button.kA.value).onTrue(new InstantCommand(PositionComponent::zeroPose));
     }
 }

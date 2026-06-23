@@ -41,7 +41,9 @@ public class MAXSwerveModule{
         //  .allowedClosedLoopError(0.05)
          .minOutput(-1)
          .maxOutput(1)
-         .pid(DrivetrainConstants.turningVelocityP, DrivetrainConstants.turningVelocityI, DrivetrainConstants.turningVelocityD);
+         .pid(DrivetrainConstants.turningVelocityP, DrivetrainConstants.turningVelocityI, DrivetrainConstants.turningVelocityD)
+         .feedForward
+            .kV(DrivetrainConstants.turningVelocityF);
 
          SparkFlexConfig drivingConfig = new SparkFlexConfig();
          drivingConfig
@@ -57,7 +59,9 @@ public class MAXSwerveModule{
          .pid(DrivetrainConstants.drivingVelocityP, DrivetrainConstants.drivingVelocityI, DrivetrainConstants.drivingVelocityD)
          .minOutput(-1)
          .maxOutput(1)
-         .positionWrappingEnabled(false);
+         .positionWrappingEnabled(false)
+         .feedForward
+            .kV(DrivetrainConstants.drivingVelocityF);
         
         turningMotor = new SparkMax(turningMotorControllerID, MotorType.kBrushless);
         drivingMotor = new SparkFlex(drivingMotorControllerID, MotorType.kBrushless);

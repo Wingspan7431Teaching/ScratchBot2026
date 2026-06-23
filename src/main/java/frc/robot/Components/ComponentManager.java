@@ -8,7 +8,7 @@ public class ComponentManager {
     public static void initialize(){
         // NOTE: This needs to be changed eventually to reflect auto and such
         PositionComponent.initialize(DrivetrainConstants.kinematics, ()->{return Drivetrain.getInstance().getSwerveModulePositions();}, 
-        ()->{return Drivetrain.getInstance().getSwerveModuleStates();},Pose2d.kZero,Pose2d.kZero);
+        ()->{return Drivetrain.getInstance().getSwerveModuleStates();},Pose2d.kZero);
     }
     public static void periodic(){
         PositionComponent.periodic();

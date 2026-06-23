@@ -19,7 +19,7 @@ public class Robot extends TimedRobot {
   public void robotInit() {
     //set up for position tracking 
     ComponentManager.initialize();
-    PositionComponent.zeroPos();
+    PositionComponent.zeroPose();
     //initialize the instance variable
     instance = this;
   }

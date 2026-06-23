@@ -83,7 +83,7 @@ public class Scratchbot {
      * @param yVelocity Supplier for the Y velocity of the robot. [-1,1]
      */
     public static void sb_setRobotMovement(Supplier<Double> xVelocity, Supplier<Double> yVelocity){
-        CommandScheduler.getInstance().schedule(new JoystickControl(xVelocity,yVelocity, () -> {return 0.0;}));
+        toRun.addCommands(new JoystickControl(xVelocity,yVelocity, () -> {return 0.0;}));
     }
 
     public static SequentialCommandGroup getToRun(){

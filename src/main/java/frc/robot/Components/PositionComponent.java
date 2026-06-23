@@ -1,45 +1,47 @@
 package frc.robot.Components;
+
 import java.util.function.Supplier;
-
-import com.studica.frc.AHRS;
-
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import frc.robot.Robot;
+import frc.robot.Components.GyroComponent.*;
 
 /**
  * A singleton class that encapsulates the {@link SwerveDrivePoseEstimator}
- * to give positions from limelight and odometry.
+ * to give positions from limelight and odometry. (Uses blue origin)
  * @author Darren Ringer
  */
 public class PositionComponent{
+    //-------------------------------------------Constants--------------------------------------------//
+    private static final double limelightUncertianty = 5.0;
+
     //-------------------------------------------Variables--------------------------------------------//
     private static PositionComponent instance;
     private static SwerveDrivePoseEstimator poseEstimator;
     private static Supplier<SwerveModulePosition[]> swerveModulePositionSupplier; 
     private static Supplier<SwerveModuleState[]> swerveModuleStatesSupplier;
     private static SwerveDriveKinematics kinematics;
-    private static AHRS gyro;
+    private static GyroIO gyro;
     private static Pose2d lastCache;
-    private static Pose2d origin;
 
     //------------------------------------------Core Methods------------------------------------------//
 
     private PositionComponent(SwerveDriveKinematics m_kinematics, Supplier<SwerveModulePosition[]> m_swerveModulePositionsSupplier, 
-                              Supplier<SwerveModuleState[]> m_swerveModuleStatesSupplier, Pose2d initialPose, Pose2d originCompensator){
-        gyro = new AHRS(AHRS.NavXComType.kMXP_SPI);
-        gyro.zeroYaw();
+                              Supplier<SwerveModuleState[]> m_swerveModuleStatesSupplier, Pose2d initialPose){
+        gyro = new NavX2Gyro();
+        gyro.reset();
 
-        lastCache = originCompensator.transformBy(new Transform2d(initialPose.toMatrix()));
-        origin = originCompensator;
+        lastCache = initialPose;
         kinematics = m_kinematics;
         swerveModulePositionSupplier = m_swerveModulePositionsSupplier;
         swerveModuleStatesSupplier = m_swerveModuleStatesSupplier;
-        poseEstimator = new SwerveDrivePoseEstimator(kinematics, gyro.getRotation2d(), m_swerveModulePositionsSupplier.get(), originCompensator.transformBy(new Transform2d(initialPose.toMatrix())));
+        poseEstimator = new SwerveDrivePoseEstimator(kinematics, gyro.getRotation(), m_swerveModulePositionsSupplier.get(), initialPose);
     }
     /**
      * Gets the instance of PositionComponent or throws an error if none exists yet
@@ -60,20 +62,18 @@ public class PositionComponent{
      * @return Instance of PositionComponent
      */
     public static PositionComponent initialize(SwerveDriveKinematics kinematics, Supplier<SwerveModulePosition[]> swerveModulePositionsSupplier, 
-                                               Supplier<SwerveModuleState[]> swerveModuleStatesSupplier, Pose2d initialPose, Pose2d originCompensator){
-        instance = new PositionComponent(kinematics, swerveModulePositionsSupplier, swerveModuleStatesSupplier, initialPose, originCompensator);
+                                               Supplier<SwerveModuleState[]> swerveModuleStatesSupplier, Pose2d initialPose){
+        instance = new PositionComponent(kinematics, swerveModulePositionsSupplier, swerveModuleStatesSupplier, initialPose);
         return instance;
     }
     /**
      * PositionComponent periodic loop (should be called in ComponentManager.periodic())
      */
-    static int d = 0;
-    static int q = 20;
-
     public static void periodic(){
-        lastCache = poseEstimator.update(gyro.getRotation2d(), swerveModulePositionSupplier.get());
-
-        if(++d==q) d=0;
+        lastCache = poseEstimator.update(gyro.getRotation(), swerveModulePositionSupplier.get());
+        // if(!DriverStation.getAlliance().isEmpty() && DriverStation.getAlliance().get() == Alliance.Red){
+        //     lastCache = new Pose2d(lastCache.getTranslation(),lastCache.getRotation().plus(Rotation2d.k180deg));
+        // }
     }
     //--------------------------------------------Getters---------------------------------------------//
 
@@ -82,16 +82,15 @@ public class PositionComponent{
      * @return The current RobotPose
      */
     public static Pose2d getPose2d(){
-        Transform2d temp = new Transform2d(origin,lastCache);
-        return new Pose2d(temp.getTranslation(),temp.getRotation());
+        return lastCache;
     }
 
     /**
-     * Gets the robot's raw pose without any origins applied
-     * @return Raw Pose2d
+     * Gets rotation reading from gyro
+     * @return Gyro's rotation
      */
-    public static Pose2d getRawPose2d(){
-        return lastCache;
+    public static Rotation2d getGyroReading(){
+        return gyro.getRotation();
     }
 
     /**
@@ -108,40 +107,24 @@ public class PositionComponent{
         );
     }
 
-    /**
-     * Gets the gyro 
-     * @return the gyro
-     */
-    public static AHRS getGyro(){
-        return gyro;
-    }
     //--------------------------------------------Setters---------------------------------------------//
 
     /**
-     * Resets the Pose of the robot to a given pose (i.e. if newPose = (1,1,0) then wherever the robot is currently will
-     * be treated as (1,1,0)).
-     * @param newPose The new pose for the robot
+     * Sets the pose
+     * @param newPose The new pose
      */
     public static void resetPose(Pose2d newPose){
-        origin = lastCache.transformBy(new Transform2d(newPose.getTranslation().times(-1),newPose.getRotation().times(-1)));
-        gyro.setAngleAdjustment(newPose.getRotation().getDegrees()-gyro.getYaw());
-    }
-    /**
-     * Sets the current pose to be the new zero
-     */
-    public static void zeroPos(){
-        origin = lastCache;
-        gyro.zeroYaw();
+        poseEstimator.resetPose(newPose);
+        // gyro.reset(newPose.getRotation());
+        lastCache = newPose;
     }
     
     /**
-     * Does a true reset of the position (internally as well) <p>
-     * <strong>DO NOT USE UNLESS YOU KNOW WHAT YOU'RE DOING</strong>
+     * Rezeros pose
      */
-    public static void trueZero(){
+    public static void zeroPose(){
         poseEstimator.resetPose(Pose2d.kZero);
-        gyro.zeroYaw();
-        origin = Pose2d.kZero;
+        gyro.reset();
         lastCache = Pose2d.kZero;
     }
 }

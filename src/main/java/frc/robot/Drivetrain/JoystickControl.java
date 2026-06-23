@@ -33,6 +33,7 @@ public class JoystickControl extends Command{
     }
     @Override
     public void execute(){
+        System.out.println("RUNNING");
         //input squaring
         velX = Math.signum(vx.get())*Math.pow(MathUtil.clamp(vx.get(), -1, 1), 2);
         velY = Math.signum(vy.get())*Math.pow(MathUtil.clamp(vy.get(), -1, 1), 2);

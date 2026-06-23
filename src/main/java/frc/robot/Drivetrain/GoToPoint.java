@@ -23,13 +23,6 @@ public class GoToPoint extends Command{
     double moveX;
     Rotation2d turn;
     double moveY;
-
-    TrapezoidProfile.State xStartState;
-    TrapezoidProfile.State xEndState;
-    TrapezoidProfile.State yStartState;
-    TrapezoidProfile.State yEndState;
-    TrapezoidProfile.State rotationStartState;
-    TrapezoidProfile.State rotationEndState;
     
     /**
      * Constructor for a GoToPoint object
@@ -104,17 +97,8 @@ public class GoToPoint extends Command{
         if(scratchbot){
             Pose2d curPose = PositionComponent.getPose2d();
             this.targetPosition = curPose.transformBy(new Transform2d(moveX, moveY, turn));
-            // this.targetPosition = new Pose2d(curPose.getX() + moveX, curPose.getY()+ moveY, curPose.getRotation());
         }
         System.out.println("x" + targetPosition.getX() + " y:" + targetPosition.getY() + "rot: " + targetPosition.getRotation().getRadians());
-        startTime = Timer.getFPGATimestamp();
-        //sets the overall states for the profiles
-        xStartState = new TrapezoidProfile.State(PositionComponent.getPose2d().getX(), PositionComponent.getChassisSpeeds().vxMetersPerSecond);
-        xEndState = new TrapezoidProfile.State(targetPosition.getX(), 0);
-        yStartState = new TrapezoidProfile.State(PositionComponent.getPose2d().getY(), PositionComponent.getChassisSpeeds().vyMetersPerSecond);
-        yEndState = new TrapezoidProfile.State(targetPosition.getY(), 0);
-        rotationStartState = new TrapezoidProfile.State(PositionComponent.getPose2d().getRotation().getRadians(), PositionComponent.getChassisSpeeds().omegaRadiansPerSecond);
-        rotationEndState = new TrapezoidProfile.State(targetPosition.getRotation().getRadians(), 0);
     }
 
     @Override
@@ -125,28 +109,22 @@ public class GoToPoint extends Command{
 
         distance = getDistanceFromPoint();
         rotDistance = Math.abs(getDifferenceFromAngle());
-
-        System.out.println("dist Away:: " + distance);
         //get the current setpoints for the profiles
-        TrapezoidProfile.State xSetpoint = DrivetrainConstants.xProfile.calculate((Timer.getFPGATimestamp() - startTime), xStartState, xEndState);
-        TrapezoidProfile.State ySetpoint = DrivetrainConstants.yProfile.calculate((Timer.getFPGATimestamp() - startTime), yStartState, yEndState);
-        TrapezoidProfile.State rotSetpoint = DrivetrainConstants.rotProfile.calculate((Timer.getFPGATimestamp() - startTime), rotationStartState, rotationEndState);
         
-        //if the velocity is 0 and we're still not where we need to be, calculate the velocities
-        //else just grab it from the setpoint.
-        if (xSetpoint.velocity == 0 && ySetpoint.velocity == 0 && distance > DrivetrainConstants.atPointTarget){
+        //if not at point, calculate the velocities
+        if (distance > DrivetrainConstants.atPointTarget){
             Vector velocities = calculateVelocitiesXY(targetPosition, PositionComponent.getPose2d());
             velX = velocities.x;
             velY = velocities.y;
         }else{
-            velX = xSetpoint.velocity;
-            velY = ySetpoint.velocity;
+            velX = 0;
+            velY = 0;
         }
         
-        if (rotSetpoint.velocity ==0 && rotDistance > DrivetrainConstants.atRotTarget){
+        if (rotDistance > DrivetrainConstants.atRotTarget){
             velR = calculateVelocityRot(targetPosition, PositionComponent.getPose2d());
         }else{
-            velR = rotSetpoint.velocity;
+            velR = 0;
         }
 
         //set the PIDs based on what has been calculated
@@ -207,7 +185,7 @@ public class GoToPoint extends Command{
     public Vector calculateVelocitiesXY(Pose2d desiredPose, Pose2d currentPose){
         Vector velocity = new Vector(desiredPose.getX() - currentPose.getX(), desiredPose.getY() - currentPose.getY());
         Vector normalVelocity = velocity.normalize();
-        double multiplier = distance/DrivetrainConstants.multiplierConstant;
+        double multiplier = distance > DrivetrainConstants.slowDistance? DrivetrainConstants.defaultDriveSpeed: distance/DrivetrainConstants.multiplierConstant;
         return normalVelocity.multiplyVector(multiplier);
     }
 
@@ -219,7 +197,8 @@ public class GoToPoint extends Command{
      * @author Giahna C.
      */
     public double calculateVelocityRot(Pose2d desiredPose, Pose2d currentPose){
-        return MathUtil.clamp(getDifferenceFromAngle(),-1,1)/DrivetrainConstants.rotMultiplierConstant;
+        double multiplier = rotDistance > DrivetrainConstants.slowAngle? DrivetrainConstants.defaultRotSpeed: DrivetrainConstants.defaultRotSpeed*(rotDistance/DrivetrainConstants.rotMultiplierConstant);
+        return MathUtil.clamp(getDifferenceFromAngle(),-1,1)*DrivetrainConstants.defaultRotSpeed;
     }
 }
 
